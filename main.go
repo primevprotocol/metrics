@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -21,6 +22,12 @@ type RequestData struct {
 	Id      int      `json:"id"`
 }
 
+type BlockNumberResponse struct {
+	Jsonrpc string `json:"jsonrpc"`
+	Id      int    `json:"id"`
+	Result  string `json:"result"`
+}
+
 type ResponseData struct {
 	Result struct {
 		ExtraData string `json:"extraData"`
@@ -32,12 +39,77 @@ func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 
 	// Initialize the params value (hexadecimal string)
-	blockNumber := 0x10823a8
+	blockNumberChan := make(chan int, 20)
 
 	// Define the URL
 	url := "http://localhost:8545"
 
-	for {
+	go func(blockNumbersChannel chan int) {
+		blockNumber := 17785600
+
+		for {
+			requestData := RequestData{
+				Jsonrpc: "2.0",
+				Method:  "eth_blockNumber",
+				Params:  []string{},
+				Id:      0,
+			}
+
+			jsonData, err := json.Marshal(requestData)
+			if err != nil {
+				log.Error().Err(err).Msg("Error marshalling JSON")
+				time.Sleep(1 * time.Second)
+				continue
+			}
+
+			req, err := http.NewRequest("POST", "http://localhost:8545", bytes.NewBuffer(jsonData))
+			if err != nil {
+				log.Error().Err(err).Msg("Error creating HTTP request")
+				time.Sleep(1 * time.Second)
+				continue
+			}
+			req.Header.Set("Content-Type", "application/json")
+
+			client := &http.Client{}
+			resp, err := client.Do(req)
+			if err != nil {
+				log.Error().Err(err).Msg("Error sending HTTP request")
+				time.Sleep(1 * time.Second)
+				continue
+			}
+
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				log.Error().Err(err).Msg("Error reading HTTP response")
+				resp.Body.Close()
+				time.Sleep(1 * time.Second)
+				continue
+			}
+			resp.Body.Close()
+
+			var blockNumberResponse BlockNumberResponse
+			err = json.Unmarshal(body, &blockNumberResponse)
+			if err != nil {
+				log.Error().Err(err).Msg("Error decoding response JSON")
+				time.Sleep(1 * time.Second)
+				continue
+			}
+
+			newBlockNumber, err := strconv.ParseUint(blockNumberResponse.Result[2:], 16, 64)
+			if err != nil {
+				log.Error().Err(err).Msgf("Error converting block number %s to decimal", blockNumberResponse.Result)
+				continue
+			}
+			for blockNumber < int(newBlockNumber) {
+				blockNumber = blockNumber + 1
+				blockNumbersChannel <- blockNumber
+			}
+			time.Sleep(1 * time.Second)
+
+		}
+	}(blockNumberChan)
+
+	for blockNumber := range blockNumberChan {
 		// Prepare the request data
 		requestData := RequestData{
 			Jsonrpc: "2.0",
