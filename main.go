@@ -164,8 +164,5 @@ func main() {
 
 		// Increment the params value
 		blockNumber++
-
-		// Sleep for a while before starting the next loop
-		time.Sleep(1 * time.Second)
 	}
 }
