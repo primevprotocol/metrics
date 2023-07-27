@@ -16,10 +16,10 @@ import (
 
 // Define the request and response data structures
 type RequestData struct {
-	Jsonrpc string   `json:"jsonrpc"`
-	Method  string   `json:"method"`
-	Params  []string `json:"params"`
-	Id      int      `json:"id"`
+	Jsonrpc string        `json:"jsonrpc"`
+	Method  string        `json:"method"`
+	Params  []interface{} `json:"params"`
+	Id      int           `json:"id"`
 }
 
 type BlockNumberResponse struct {
@@ -28,10 +28,63 @@ type BlockNumberResponse struct {
 	Result  string `json:"result"`
 }
 
-type ResponseData struct {
+type BlockDataResponse struct {
 	Result struct {
 		ExtraData string `json:"extraData"`
 	} `json:"result"`
+}
+
+func processRequest(requestData RequestData, blockNumber int) string {
+	url := "http://localhost:8545"
+
+	jsonData, err := json.Marshal(requestData)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error marshalling JSON")
+		return ""
+	}
+
+	// Create the HTTP request
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error creating HTTP request")
+		return ""
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	// Send the HTTP request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error sending HTTP request")
+		return ""
+	}
+
+	// Read the HTTP response
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error reading HTTP response")
+		return ""
+	}
+
+	resp.Body.Close()
+
+	// Decode the response JSON
+	var blockDataResponse BlockDataResponse
+	err = json.Unmarshal(body, &blockDataResponse)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error decoding response JSON")
+		return ""
+	}
+
+	// Decode the extraData field from hex to a string
+	extraDataBytes, err := hex.DecodeString(blockDataResponse.Result.ExtraData[2:]) // skip the '0x' prefix
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error decoding extraData")
+		return ""
+	}
+	extraData := string(extraDataBytes)
+
+	return extraData
 }
 
 func main() {
@@ -51,7 +104,7 @@ func main() {
 			requestData := RequestData{
 				Jsonrpc: "2.0",
 				Method:  "eth_blockNumber",
-				Params:  []string{},
+				Params:  nil,
 				Id:      0,
 			}
 
@@ -62,7 +115,7 @@ func main() {
 				continue
 			}
 
-			req, err := http.NewRequest("POST", "http://localhost:8545", bytes.NewBuffer(jsonData))
+			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 			if err != nil {
 				log.Error().Err(err).Msg("Error creating HTTP request")
 				time.Sleep(1 * time.Second)
@@ -105,62 +158,31 @@ func main() {
 				blockNumbersChannel <- blockNumber
 			}
 			time.Sleep(1 * time.Second)
-
 		}
 	}(blockNumberChan)
 
 	for blockNumber := range blockNumberChan {
-		// Prepare the request data
-		requestData := RequestData{
+		// Prepare the request data for BlockByNumber
+		requestDataBlockByNumber := RequestData{
 			Jsonrpc: "2.0",
-			Method:  "eth_getHeaderByNumber",
-			Params:  []string{fmt.Sprintf("0x%x", blockNumber)},
+			Method:  "eth_getBlockByNumber",
+			Params:  []interface{}{fmt.Sprintf("0x%x", blockNumber), true},
 			Id:      0,
 		}
 
-		jsonData, err := json.Marshal(requestData)
-		if err != nil {
-			log.Fatal().Err(err).Msg("Error marshalling JSON")
+		// Prepare the request data for HeaderByNumber
+		requestDataHeaderByNumber := RequestData{
+			Jsonrpc: "2.0",
+			Method:  "eth_getHeaderByNumber",
+			Params:  []interface{}{fmt.Sprintf("0x%x", blockNumber), true},
+			Id:      0,
 		}
 
-		// Create the HTTP request
-		req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
-		if err != nil {
-			log.Fatal().Err(err).Msg("Error creating HTTP request")
-		}
-		req.Header.Set("Content-Type", "application/json")
-
-		// Send the HTTP request
-		client := &http.Client{}
-		resp, err := client.Do(req)
-		if err != nil {
-			log.Fatal().Err(err).Msg("Error sending HTTP request")
-		}
-
-		// Read the HTTP response
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			log.Fatal().Err(err).Msg("Error reading HTTP response")
-		}
-
-		resp.Body.Close()
-
-		// Decode the response JSON
-		var responseData ResponseData
-		err = json.Unmarshal(body, &responseData)
-		if err != nil {
-			log.Fatal().Err(err).Msg("Error decoding response JSON")
-		}
-
-		// Decode the extraData field from hex to a string
-		extraDataBytes, err := hex.DecodeString(responseData.Result.ExtraData[2:]) // skip the '0x' prefix
-		if err != nil {
-			log.Fatal().Err(err).Msg("Error decoding extraData")
-		}
-		extraData := string(extraDataBytes)
+		extraDataBlockByNumber := processRequest(requestDataBlockByNumber, blockNumber)
+		extraDataHeaderByNumber := processRequest(requestDataHeaderByNumber, blockNumber)
 
 		// Log the extraData
-		log.Info().Int("block_number", blockNumber).Msg(extraData)
+		log.Info().Int("block_number", blockNumber).Msgf("BlockByNumber: %s, HeaderByNumber: %s", extraDataBlockByNumber, extraDataHeaderByNumber)
 
 		// Increment the params value
 		blockNumber++
