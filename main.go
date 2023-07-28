@@ -211,7 +211,6 @@ func main() {
 		}
 		log.Info().Int("block_number", blockNumber).Int("txn_count", len(responseBlock.Result.Transactions)).Msg(extraData)
 
-		time.Sleep(1 * time.Second)
 		// Increment the params value
 		blockNumber++
 	}
