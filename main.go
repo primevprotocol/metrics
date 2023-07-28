@@ -34,6 +34,10 @@ type ResponseData struct {
 	} `json:"result"`
 }
 
+type ResponseDataBody struct {
+	Result string `json:"result"`
+}
+
 func main() {
 	// Use zerolog for logging
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
@@ -118,15 +122,14 @@ func main() {
 			Id:      0,
 		}
 
-		// Prepare the request data for BlockByNumber
-		requestDataBlockByNumber := RequestData{
-			Jsonrpc: "2.0",
-			Method:  "eth_getBlockByNumber",
-			Params:  []string{fmt.Sprintf("0x%x", blockNumber), "true"},
-			Id:      0,
+		headerBody := processData(requestData, url)
+
+		// Decode the response JSON
+		var responseDataHeader ResponseData
+		err := json.Unmarshal(headerBody, &responseDataHeader)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Error decoding response JSON")
 		}
-		_ = requestDataBlockByNumber
-		responseDataHeader := processData(requestData, url)
 
 		// Decode the extraData field from hex to a string
 		extraDataBytes, err := hex.DecodeString(responseDataHeader.Result.ExtraData[2:]) // skip the '0x' prefix
@@ -138,12 +141,31 @@ func main() {
 		// Log the extraData
 		log.Info().Int("block_number", blockNumber).Msg(extraData)
 
+		// Prepare the request data for BlockByNumber
+		requestDataBlockByNumber := RequestData{
+			Jsonrpc: "2.0",
+			Method:  "eth_getBlockByNumber",
+			Params:  []string{fmt.Sprintf("0x%x", blockNumber), "true"},
+			Id:      0,
+		}
+
+		responseDataBody := processData(requestDataBlockByNumber, url)
+
+		// Decode the response JSON
+		var responseBlock ResponseDataBody
+		err = json.Unmarshal(responseDataBody, &responseBlock)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Error decoding response JSON")
+		}
+
+		log.Info().Msg(responseBlock.Result)
+
 		// Increment the params value
 		blockNumber++
 	}
 }
 
-func processData(requestData RequestData, url string) ResponseData {
+func processData(requestData RequestData, url string) []byte {
 
 	jsonData, err := json.Marshal(requestData)
 	if err != nil {
@@ -172,12 +194,5 @@ func processData(requestData RequestData, url string) ResponseData {
 
 	resp.Body.Close()
 
-	// Decode the response JSON
-	var responseData ResponseData
-	err = json.Unmarshal(body, &responseData)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Error decoding response JSON")
-	}
-
-	return responseData
+	return body
 }
