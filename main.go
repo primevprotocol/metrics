@@ -210,7 +210,8 @@ func main() {
 			log.Fatal().Err(err).Msg("Error decoding response JSON")
 		}
 		gas, _ := strconv.ParseInt(responseBlock.Result.GasUsed[2:], 16, 64)
-		log.Info().Int("block_number", blockNumber).Int64("gas_used", gas).Int("txn_count", len(responseBlock.Result.Transactions)).Msg(extraData)
+		blockValue, _ := strconv.Atoi(responseBlock.Result.Transactions[len(responseBlock.Result.Transactions)-1].Value)
+		log.Info().Int("block_number", blockNumber).Int64("gas_used", gas).Int("txn_count", len(responseBlock.Result.Transactions)).Int("block_value", blockValue).Msg(extraData)
 
 		// Increment the params value
 		blockNumber++
