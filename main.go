@@ -16,10 +16,10 @@ import (
 
 // Define the request and response data structures
 type RequestData struct {
-	Jsonrpc string   `json:"jsonrpc"`
-	Method  string   `json:"method"`
-	Params  []string `json:"params"`
-	Id      int      `json:"id"`
+	Jsonrpc string        `json:"jsonrpc"`
+	Method  string        `json:"method"`
+	Params  []interface{} `json:"params"`
+	Id      int           `json:"id"`
 }
 
 type BlockNumberResponse struct {
@@ -55,7 +55,7 @@ func main() {
 			requestData := RequestData{
 				Jsonrpc: "2.0",
 				Method:  "eth_blockNumber",
-				Params:  []string{},
+				Params:  []interface{}{},
 				Id:      0,
 			}
 
@@ -118,7 +118,7 @@ func main() {
 		requestData := RequestData{
 			Jsonrpc: "2.0",
 			Method:  "eth_getHeaderByNumber",
-			Params:  []string{fmt.Sprintf("0x%x", blockNumber)},
+			Params:  []interface{}{fmt.Sprintf("0x%x", blockNumber)},
 			Id:      0,
 		}
 
@@ -145,7 +145,7 @@ func main() {
 		requestDataBlockByNumber := RequestData{
 			Jsonrpc: "2.0",
 			Method:  "eth_getBlockByNumber",
-			Params:  []string{fmt.Sprintf("0x%x", blockNumber), "true"},
+			Params:  []interface{}{fmt.Sprintf("0x%x", blockNumber), true},
 			Id:      0,
 		}
 
@@ -153,12 +153,12 @@ func main() {
 
 		// Decode the response JSON
 		var responseBlock ResponseDataBody
+		log.Info().Msg(string(responseDataBody))
+
 		err = json.Unmarshal(responseDataBody, &responseBlock)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Error decoding response JSON")
 		}
-
-		log.Info().Msg(responseBlock.Result)
 
 		// Increment the params value
 		blockNumber++
