@@ -209,7 +209,7 @@ func main() {
 		if err != nil {
 			log.Fatal().Err(err).Msg("Error decoding response JSON")
 		}
-		log.Info().Int("block_number", blockNumber).Int("txn_count", len(responseBlock.Result.Transactions)).Msg(extraData)
+		log.Info().Int("block_number", blockNumber).Str("gas_used", responseBlock.Result.GasUsed).Int("txn_count", len(responseBlock.Result.Transactions)).Msg(extraData)
 
 		// Increment the params value
 		blockNumber++
