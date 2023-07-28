@@ -118,42 +118,18 @@ func main() {
 			Id:      0,
 		}
 
-		jsonData, err := json.Marshal(requestData)
-		if err != nil {
-			log.Fatal().Err(err).Msg("Error marshalling JSON")
+		// Prepare the request data for BlockByNumber
+		requestDataBlockByNumber := RequestData{
+			Jsonrpc: "2.0",
+			Method:  "eth_getBlockByNumber",
+			Params:  []string{fmt.Sprintf("0x%x", blockNumber), "true"},
+			Id:      0,
 		}
-
-		// Create the HTTP request
-		req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
-		if err != nil {
-			log.Fatal().Err(err).Msg("Error creating HTTP request")
-		}
-		req.Header.Set("Content-Type", "application/json")
-
-		// Send the HTTP request
-		client := &http.Client{}
-		resp, err := client.Do(req)
-		if err != nil {
-			log.Fatal().Err(err).Msg("Error sending HTTP request")
-		}
-
-		// Read the HTTP response
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			log.Fatal().Err(err).Msg("Error reading HTTP response")
-		}
-
-		resp.Body.Close()
-
-		// Decode the response JSON
-		var responseData ResponseData
-		err = json.Unmarshal(body, &responseData)
-		if err != nil {
-			log.Fatal().Err(err).Msg("Error decoding response JSON")
-		}
+		_ = requestDataBlockByNumber
+		responseDataHeader := processData(requestData, url)
 
 		// Decode the extraData field from hex to a string
-		extraDataBytes, err := hex.DecodeString(responseData.Result.ExtraData[2:]) // skip the '0x' prefix
+		extraDataBytes, err := hex.DecodeString(responseDataHeader.Result.ExtraData[2:]) // skip the '0x' prefix
 		if err != nil {
 			log.Fatal().Err(err).Msg("Error decoding extraData")
 		}
@@ -165,4 +141,43 @@ func main() {
 		// Increment the params value
 		blockNumber++
 	}
+}
+
+func processData(requestData RequestData, url string) ResponseData {
+
+	jsonData, err := json.Marshal(requestData)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error marshalling JSON")
+	}
+
+	// Create the HTTP request
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error creating HTTP request")
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	// Send the HTTP request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error sending HTTP request")
+	}
+
+	// Read the HTTP response
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error reading HTTP response")
+	}
+
+	resp.Body.Close()
+
+	// Decode the response JSON
+	var responseData ResponseData
+	err = json.Unmarshal(body, &responseData)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error decoding response JSON")
+	}
+
+	return responseData
 }
