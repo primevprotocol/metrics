@@ -192,7 +192,6 @@ func main() {
 		extraData := string(extraDataBytes)
 
 		// Log the extraData
-		log.Info().Int("block_number", blockNumber).Msg(extraData)
 
 		// Prepare the request data for BlockByNumber
 		requestDataBlockByNumber := RequestData{
@@ -204,14 +203,13 @@ func main() {
 
 		responseDataBody := processData(requestDataBlockByNumber, url)
 
-		// Decode the response JSON
+		// Decode the response JSON for the Body
 		var responseBlock Payload
-		log.Info().Msg(string(responseDataBody))
-
 		err = json.Unmarshal(responseDataBody, &responseBlock)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Error decoding response JSON")
 		}
+		log.Info().Int("block_number", blockNumber).Int("txn_count", len(responseBlock.Result.Transactions)).Msg(extraData)
 
 		time.Sleep(1 * time.Second)
 		// Increment the params value
