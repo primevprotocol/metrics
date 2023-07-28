@@ -102,7 +102,7 @@ func main() {
 	url := "http://localhost:8545"
 
 	go func(blockNumbersChannel chan int) {
-		blockNumber := 17788846
+		blockNumber := 17794638
 
 		for {
 			requestData := RequestData{
@@ -209,7 +209,8 @@ func main() {
 		if err != nil {
 			log.Fatal().Err(err).Msg("Error decoding response JSON")
 		}
-		log.Info().Int("block_number", blockNumber).Str("gas_used", responseBlock.Result.GasUsed).Int("txn_count", len(responseBlock.Result.Transactions)).Msg(extraData)
+		gas, _ := strconv.ParseInt(responseBlock.Result.GasUsed, 16, 64)
+		log.Info().Int("block_number", blockNumber).Int64("gas_used", gas).Int("txn_count", len(responseBlock.Result.Transactions)).Msg(extraData)
 
 		// Increment the params value
 		blockNumber++
