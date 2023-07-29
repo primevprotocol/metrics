@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"net/http"
 	"strconv"
 	"time"
@@ -210,12 +211,20 @@ func main() {
 			log.Fatal().Err(err).Msg("Error decoding response JSON")
 		}
 		gas, _ := strconv.ParseInt(responseBlock.Result.GasUsed[2:], 16, 64)
-		blockValue, _ := strconv.Atoi(responseBlock.Result.Transactions[len(responseBlock.Result.Transactions)-1].Value)
-		log.Info().Int("block_number", blockNumber).Int64("gas_used", gas).Int("txn_count", len(responseBlock.Result.Transactions)).Int("block_value", blockValue).Msg(extraData)
+		blockValueWei, _ := strconv.ParseInt(responseBlock.Result.Transactions[len(responseBlock.Result.Transactions)-1].Value[2:], 16, 64)
+		blockValueEth, _ := ConvertWeiToEther(big.NewInt(blockValueWei)).Float64()
+		log.Info().Int("block_number", blockNumber).Int64("gas_used", gas).Int("txn_count", len(responseBlock.Result.Transactions)).Float64("block_value", blockValueEth).Msg(extraData)
 
 		// Increment the params value
 		blockNumber++
 	}
+}
+
+// ConvertWeiToEther converts wei to ether
+func ConvertWeiToEther(wei *big.Int) *big.Float {
+	fWei := new(big.Float)
+	fWei.SetString(wei.String())
+	return new(big.Float).Quo(fWei, big.NewFloat(1e18))
 }
 
 func processData(requestData RequestData, url string) []byte {
