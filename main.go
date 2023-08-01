@@ -217,6 +217,11 @@ func main() {
 		// log.Debug().Str("transactions", txns).Msg("Dumping txns")
 		log.Info().Int("block_number", blockNumber).Int64("gas_used", gas).Int("txn_count", len(responseBlock.Result.Transactions)).Float64("block_value", blockValueEth).Msg(extraData)
 
+		// Get the transaction reciept for all the transactions https://ethereum.org/en/developers/docs/apis/json-rpc/#eth_gettransactionreceipt
+		// Total Tip Reward = gasUsed * tipFeePerGas
+		// tipFeePerGas = gasprice - baseFeePerGas
+		// the baseFeePerGas is set in the block
+
 		// Increment the params value
 		blockNumber++
 	}
