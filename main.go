@@ -103,7 +103,7 @@ func main() {
 	url := "http://localhost:8545"
 
 	go func(blockNumbersChannel chan int) {
-		blockNumber := 17814980
+		blockNumber := 17815200
 
 		for {
 			requestData := RequestData{
@@ -210,6 +210,12 @@ func main() {
 		if err != nil {
 			log.Fatal().Err(err).Msg("Error decoding response JSON")
 		}
+		if len(responseBlock.Result.Transactions) == 0 {
+			log.Info().Int("block_number", blockNumber).Int("txn_count", len(responseBlock.Result.Transactions)).Msg("Encountered a Block with no transactions. Skipping analysis")
+			blockNumber++
+			continue
+		}
+
 		gas, _ := strconv.ParseInt(responseBlock.Result.GasUsed[2:], 16, 64)
 		blockValueWei, _ := strconv.ParseInt(responseBlock.Result.Transactions[len(responseBlock.Result.Transactions)-1].Value[2:], 16, 64)
 		blockValueEth, _ := ConvertWeiToEther(big.NewInt(blockValueWei)).Float64()
