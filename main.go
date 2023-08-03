@@ -142,7 +142,7 @@ func main() {
 	url := "http://localhost:8545"
 
 	go func(blockNumbersChannel chan int) {
-		blockNumber := 17837460
+		blockNumber := 17837689
 
 		for {
 			requestData := RequestData{
@@ -222,7 +222,7 @@ func main() {
 			Str("proposer_pubkey", block.Winner.ProposerPubkey).
 			Float64("builder_payment", block.Payment).
 			Float64("builder_payout", block.Payout).
-			Float64("block_value", floatBlockValue).
+			Float64("block_value_priority_fee", floatBlockValue).
 			Str("extra_data", block.Extra).
 			Float64("base_fee", block.BaseFee).
 			Float64("priority_fee", block.PrioFee).
