@@ -226,6 +226,7 @@ func main() {
 	}
 }
 
+// Check if request returns a 400 and wait 12 seconds before trying again. It's likeley payloads.de hasn't caught up witht he new block yet
 func processBlockDataFromPayloadsDeAPI(blockNumber int) BlockInfo {
 	// Make a request to the URL https://api.payload.de/block_info?block=17837129
 	// to get the block information
@@ -234,6 +235,11 @@ func processBlockDataFromPayloadsDeAPI(blockNumber int) BlockInfo {
 	if err != nil {
 		log.Error().Err(err).Msg("Error sending HTTP request")
 		return BlockInfo{}
+	}
+	if resp.StatusCode == 400 {
+		log.Warn().Msg("Received 400 response from payloads.de. Waiting 12 seconds before trying again")
+		time.Sleep(12 * time.Second)
+		return processBlockDataFromPayloadsDeAPI(blockNumber)
 	}
 
 	body, err := io.ReadAll(resp.Body)
