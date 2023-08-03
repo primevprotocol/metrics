@@ -208,6 +208,11 @@ func main() {
 
 	for blockNumber := range blockNumberChan {
 		block := processBlockDataFromPayloadsDeAPI(blockNumber)
+		floatBlockValue, err := strconv.ParseFloat(block.Winner.Value, 64)
+		if err != nil {
+			log.Error().Err(err).Msg("Error converting block value to float")
+		}
+
 		log.Info().
 			Int("block_number", block.Block).
 			Int("txn_count", block.TxCount).
@@ -217,7 +222,7 @@ func main() {
 			Str("proposer_pubkey", block.Winner.ProposerPubkey).
 			Float64("builder_payment", block.Payment).
 			Float64("builder_payout", block.Payout).
-			Str("block_value", block.Winner.Value).
+			Float64("block_value", floatBlockValue).
 			Str("extra_data", block.Extra).
 			Float64("base_fee", block.BaseFee).
 			Float64("priority_fee", block.PrioFee).
