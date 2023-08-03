@@ -2,11 +2,9 @@ package main
 
 import (
 	"bytes"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"math/big"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -92,6 +90,47 @@ type Payload struct {
 	} `json:"result"`
 }
 
+type BlockInfo struct {
+	Slot         int         `json:"slot"`
+	Block        int         `json:"block"`
+	BlockHash    string      `json:"block_hash"`
+	Builder      string      `json:"builder"`
+	Coinbase     string      `json:"coinbase"`
+	Validator    string      `json:"validator"`
+	FeeRecipient string      `json:"fee_recipient"`
+	Payment      float64     `json:"payment"`
+	Payout       float64     `json:"payout"`
+	Payback      int         `json:"payback"`
+	Alimony      float64     `json:"alimony"`
+	Difference   float64     `json:"difference"`
+	Offset       int         `json:"offset"`
+	TxCount      int         `json:"tx_count"`
+	GasUsed      int         `json:"gas_used"`
+	BaseFee      float64     `json:"base_fee"`
+	PrioFee      float64     `json:"prio_fee"`
+	Extra        string      `json:"extra"`
+	Winner       WinnerBlock `json:"winner"`
+}
+
+type WinnerBlock struct {
+	Slot                 string          `json:"slot"`
+	ParentHash           string          `json:"parent_hash"`
+	BlockHash            string          `json:"block_hash"`
+	BuilderPubkey        string          `json:"builder_pubkey"`
+	ProposerPubkey       string          `json:"proposer_pubkey"`
+	ProposerFeeRecipient string          `json:"proposer_fee_recipient"`
+	GasLimit             string          `json:"gas_limit"`
+	GasUsed              string          `json:"gas_used"`
+	Value                string          `json:"value"`
+	BlockNumber          string          `json:"block_number"`
+	NumTx                string          `json:"num_tx"`
+	Timestamp            string          `json:"timestamp"`
+	TimestampMs          string          `json:"timestamp_ms"`
+	OptimisticSubmission bool            `json:"optimistic_submission"`
+	Builder              string          `json:"builder"`
+	Relays               map[string]bool `json:"relays"`
+}
+
 func main() {
 	// Use zerolog for logging
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
@@ -120,7 +159,7 @@ func main() {
 				continue
 			}
 
-			req, err := http.NewRequest("POST", "http://localhost:8545", bytes.NewBuffer(jsonData))
+			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 			if err != nil {
 				log.Error().Err(err).Msg("Error creating HTTP request")
 				time.Sleep(1 * time.Second)
@@ -136,7 +175,7 @@ func main() {
 				continue
 			}
 
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			if err != nil {
 				log.Error().Err(err).Msg("Error reading HTTP response")
 				resp.Body.Close()
@@ -168,106 +207,49 @@ func main() {
 	}(blockNumberChan)
 
 	for blockNumber := range blockNumberChan {
-		// Prepare the request data
-		requestData := RequestData{
-			Jsonrpc: "2.0",
-			Method:  "eth_getHeaderByNumber",
-			Params:  []interface{}{fmt.Sprintf("0x%x", blockNumber)},
-			Id:      0,
-		}
-
-		headerBody := processData(requestData, url)
-
-		// Decode the response JSON
-		var responseDataHeader ResponseData
-		err := json.Unmarshal(headerBody, &responseDataHeader)
-		if err != nil {
-			log.Fatal().Err(err).Msg("Error decoding response JSON")
-		}
-
-		// Decode the extraData field from hex to a string
-		extraDataBytes, err := hex.DecodeString(responseDataHeader.Result.ExtraData[2:]) // skip the '0x' prefix
-		if err != nil {
-			log.Fatal().Err(err).Msg("Error decoding extraData")
-		}
-		extraData := string(extraDataBytes)
-
-		// Log the extraData
-
-		// Prepare the request data for BlockByNumber
-		requestDataBlockByNumber := RequestData{
-			Jsonrpc: "2.0",
-			Method:  "eth_getBlockByNumber",
-			Params:  []interface{}{fmt.Sprintf("0x%x", blockNumber), true},
-			Id:      0,
-		}
-
-		responseDataBody := processData(requestDataBlockByNumber, url)
-
-		// Decode the response JSON for the Body
-		var responseBlock Payload
-		err = json.Unmarshal(responseDataBody, &responseBlock)
-		if err != nil {
-			log.Fatal().Err(err).Msg("Error decoding response JSON")
-		}
-		if len(responseBlock.Result.Transactions) == 0 {
-			log.Info().Int("block_number", blockNumber).Int("txn_count", len(responseBlock.Result.Transactions)).Msg("Encountered a Block with no transactions. Skipping analysis")
-			blockNumber++
-			continue
-		}
-
-		gas, _ := strconv.ParseInt(responseBlock.Result.GasUsed[2:], 16, 64)
-		blockValueWei, _ := strconv.ParseInt(responseBlock.Result.Transactions[len(responseBlock.Result.Transactions)-1].Value[2:], 16, 64)
-		blockValueEth, _ := ConvertWeiToEther(big.NewInt(blockValueWei)).Float64()
-		// txns := fmt.Sprintf("%v", responseBlock.Result.Transactions)
-		// log.Debug().Str("transactions", txns).Msg("Dumping txns")
-		log.Info().Int("block_number", blockNumber).Int64("gas_used", gas).Int("txn_count", len(responseBlock.Result.Transactions)).Float64("block_value", blockValueEth).Msg(extraData)
-
-		// Get the transaction reciept for all the transactions https://ethereum.org/en/developers/docs/apis/json-rpc/#eth_gettransactionreceipt
-		// Total Tip Reward = gasUsed * tipFeePerGas
-		// tipFeePerGas = gasprice - baseFeePerGas
-		// the baseFeePerGas is set in the block
-
-		// Increment the params value
-		blockNumber++
+		block := processBlockDataFromPayloadsDeAPI(blockNumber)
+		log.Info().
+			Int("block_number", block.Block).
+			Int("txn_count", block.TxCount).
+			Str("block_hash", block.BlockHash).
+			Str("builder", block.Builder).
+			Str("builder_pubkey", block.Winner.BuilderPubkey).
+			Str("proposer_pubkey", block.Winner.ProposerPubkey).
+			Float64("builder_payment", block.Payment).
+			Float64("builder_payout", block.Payout).
+			Str("block_value", block.Winner.Value).
+			Str("extra_data", block.Extra).
+			Float64("base_fee", block.BaseFee).
+			Float64("priority_fee", block.PrioFee).
+			Int("gas_used", block.GasUsed).
+			Msg("New Block Metadata")
 	}
 }
 
-// ConvertWeiToEther converts wei to ether
-func ConvertWeiToEther(wei *big.Int) *big.Float {
-	fWei := new(big.Float)
-	fWei.SetString(wei.String())
-	return new(big.Float).Quo(fWei, big.NewFloat(1e18))
-}
-
-func processData(requestData RequestData, url string) []byte {
-
-	jsonData, err := json.Marshal(requestData)
+func processBlockDataFromPayloadsDeAPI(blockNumber int) BlockInfo {
+	// Make a request to the URL https://api.payload.de/block_info?block=17837129
+	// to get the block information
+	blockInfoURL := fmt.Sprintf("https://api.payload.de/block_info?block=%d", blockNumber)
+	resp, err := http.Get(blockInfoURL)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Error marshalling JSON")
+		log.Error().Err(err).Msg("Error sending HTTP request")
+		return BlockInfo{}
 	}
 
-	// Create the HTTP request
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Error creating HTTP request")
+		log.Error().Err(err).Msg("Error reading HTTP response")
+		resp.Body.Close()
+		return BlockInfo{}
 	}
-	req.Header.Set("Content-Type", "application/json")
-
-	// Send the HTTP request
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Error sending HTTP request")
-	}
-
-	// Read the HTTP response
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Error reading HTTP response")
-	}
-
 	resp.Body.Close()
 
-	return body
+	var blockInfo BlockInfo
+	err = json.Unmarshal(body, &blockInfo)
+	if err != nil {
+		log.Error().Err(err).Msg("Error decoding response JSON")
+		return BlockInfo{}
+	}
+
+	return blockInfo
 }
