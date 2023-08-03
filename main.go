@@ -100,7 +100,7 @@ type BlockInfo struct {
 	FeeRecipient string      `json:"fee_recipient"`
 	Payment      float64     `json:"payment"`
 	Payout       float64     `json:"payout"`
-	Payback      int         `json:"payback"`
+	Payback      float64     `json:"payback"`
 	Alimony      float64     `json:"alimony"`
 	Difference   float64     `json:"difference"`
 	Offset       int         `json:"offset"`
