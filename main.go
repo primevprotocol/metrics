@@ -142,7 +142,7 @@ func main() {
 	url := "http://localhost:8545"
 
 	go func(blockNumbersChannel chan int) {
-		blockNumber := 17837129
+		blockNumber := 17837460
 
 		for {
 			requestData := RequestData{
