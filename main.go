@@ -159,7 +159,7 @@ var ErrUnableToUnmarshal = errors.New("unable to unmarshal response JSON")
 func processBlockDataFromPayloadsDeAPI(blockNumber int) (BlockInfo, error) {
 	// Make a request to the URL https://api.payload.de/block_info?block=17837129
 	// to get the block information
-	time.Sleep(1000000 * time.Nanosecond)
+	time.Sleep(100000000 * time.Nanosecond)
 	blockInfoURL := fmt.Sprintf("https://api.payload.de/block_info?block=%d", blockNumber)
 	resp, err := http.Get(blockInfoURL)
 	if err != nil {
