@@ -1,8 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -32,84 +32,29 @@ type ResponseData struct {
 		ExtraData string `json:"extraData"`
 	} `json:"result"`
 }
-type Transaction struct {
-	BlockHash            string `json:"blockHash"`
-	BlockNumber          string `json:"blockNumber"`
-	From                 string `json:"from"`
-	Gas                  string `json:"gas"`
-	GasPrice             string `json:"gasPrice"`
-	MaxFeePerGas         string `json:"maxFeePerGas"`
-	MaxPriorityFeePerGas string `json:"maxPriorityFeePerGas"`
-	Hash                 string `json:"hash"`
-	Input                string `json:"input"`
-	Nonce                string `json:"nonce"`
-	To                   string `json:"to"`
-	TransactionIndex     string `json:"transactionIndex"`
-	Value                string `json:"value"`
-	Type                 string `json:"type"`
-	ChainId              string `json:"chainId"`
-	V                    string `json:"v"`
-	R                    string `json:"r"`
-	S                    string `json:"s"`
-}
-
-type Withdrawal struct {
-	Index          string `json:"index"`
-	ValidatorIndex string `json:"validatorIndex"`
-	Address        string `json:"address"`
-	Amount         string `json:"amount"`
-}
-
-type Payload struct {
-	Jsonrpc string `json:"jsonrpc"`
-	ID      int    `json:"id"`
-	Result  struct {
-		BaseFeePerGas    string        `json:"baseFeePerGas"`
-		Difficulty       string        `json:"difficulty"`
-		ExtraData        string        `json:"extraData"`
-		GasLimit         string        `json:"gasLimit"`
-		GasUsed          string        `json:"gasUsed"`
-		Hash             string        `json:"hash"`
-		LogsBloom        string        `json:"logsBloom"`
-		Miner            string        `json:"miner"`
-		MixHash          string        `json:"mixHash"`
-		Nonce            string        `json:"nonce"`
-		Number           string        `json:"number"`
-		ParentHash       string        `json:"parentHash"`
-		ReceiptsRoot     string        `json:"receiptsRoot"`
-		Sha3Uncles       string        `json:"sha3Uncles"`
-		Size             string        `json:"size"`
-		StateRoot        string        `json:"stateRoot"`
-		Timestamp        string        `json:"timestamp"`
-		TotalDifficulty  string        `json:"totalDifficulty"`
-		Transactions     []Transaction `json:"transactions"`
-		TransactionsRoot string        `json:"transactionsRoot"`
-		Uncles           []string      `json:"uncles"`
-		Withdrawals      []Withdrawal  `json:"withdrawals"`
-		WithdrawalsRoot  string        `json:"withdrawalsRoot"`
-	} `json:"result"`
-}
 
 type BlockInfo struct {
-	Slot         int         `json:"slot"`
-	Block        int         `json:"block"`
-	BlockHash    string      `json:"block_hash"`
-	Builder      string      `json:"builder"`
-	Coinbase     string      `json:"coinbase"`
-	Validator    string      `json:"validator"`
-	FeeRecipient string      `json:"fee_recipient"`
-	Payment      float64     `json:"payment"`
-	Payout       float64     `json:"payout"`
-	Payback      float64     `json:"payback"`
-	Alimony      float64     `json:"alimony"`
-	Difference   float64     `json:"difference"`
-	Offset       int         `json:"offset"`
-	TxCount      int         `json:"tx_count"`
-	GasUsed      int         `json:"gas_used"`
-	BaseFee      float64     `json:"base_fee"`
-	PrioFee      float64     `json:"prio_fee"`
-	Extra        string      `json:"extra"`
-	Winner       WinnerBlock `json:"winner"`
+	Slot         int           `json:"slot"`
+	Block        int           `json:"block"`
+	BlockHash    string        `json:"block_hash"`
+	Builder      string        `json:"builder"`
+	Coinbase     string        `json:"coinbase"`
+	Validator    string        `json:"validator"`
+	FeeRecipient string        `json:"fee_recipient"`
+	Payment      float64       `json:"payment"`
+	Payout       float64       `json:"payout"`
+	Payback      float64       `json:"payback"`
+	Alimony      float64       `json:"alimony"`
+	Difference   float64       `json:"difference"`
+	Offset       int           `json:"offset"`
+	TxCount      int           `json:"tx_count"`
+	GasUsed      int           `json:"gas_used"`
+	BaseFee      float64       `json:"base_fee"`
+	PrioFee      float64       `json:"prio_fee"`
+	Extra        string        `json:"extra"`
+	Timestamp    int           `json:"timestamp"`
+	Transactions []Transaction `json:"transactions"`
+	Winner       WinnerBlock   `json:"winner"`
 }
 
 type WinnerBlock struct {
@@ -131,94 +76,67 @@ type WinnerBlock struct {
 	Relays               map[string]bool `json:"relays"`
 }
 
+type Transaction struct {
+	Hash        string   `json:"hash"`
+	Block       int      `json:"block"`
+	Class       string   `json:"class"`
+	MethodID    string   `json:"method_id"`
+	Method      string   `json:"method"`
+	TargetLabel string   `json:"target_label"`
+	Tags        []string `json:"tags"`
+	From        string   `json:"from"`
+	To          string   `json:"to"`
+	DataSize    int      `json:"data_size"`
+	GasLimit    int      `json:"gas_limit"`
+	GasUsed     int      `json:"gas_used"`
+	Status      int      `json:"status"`
+	Fee         float64  `json:"fee"`
+	Tip         float64  `json:"tip"`
+	Price       float64  `json:"price"`
+	TipReward   float64  `json:"tip_reward"`
+	Value       float64  `json:"value"`
+	Nonce       int      `json:"nonce"`
+	Position    int      `json:"position"`
+	Coinbase    float64  `json:"coinbase"`
+	Timestamp   int      `json:"timestamp"`
+}
+
 func main() {
 	// Use zerolog for logging
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-
-	// Initialize the params value (hexadecimal string)
-	blockNumberChan := make(chan int, 20)
-
-	// Define the URL
-	url := "http://localhost:8545"
-
-	go func(blockNumbersChannel chan int) {
-		blockNumber := 17837689
-
-		for {
-			requestData := RequestData{
-				Jsonrpc: "2.0",
-				Method:  "eth_blockNumber",
-				Params:  []interface{}{},
-				Id:      0,
-			}
-
-			jsonData, err := json.Marshal(requestData)
-			if err != nil {
-				log.Error().Err(err).Msg("Error marshalling JSON")
-				time.Sleep(1 * time.Second)
-				continue
-			}
-
-			req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
-			if err != nil {
-				log.Error().Err(err).Msg("Error creating HTTP request")
-				time.Sleep(1 * time.Second)
-				continue
-			}
-			req.Header.Set("Content-Type", "application/json")
-
-			client := &http.Client{}
-			resp, err := client.Do(req)
-			if err != nil {
-				log.Error().Err(err).Msg("Error sending HTTP request")
-				time.Sleep(1 * time.Second)
-				continue
-			}
-
-			body, err := io.ReadAll(resp.Body)
-			if err != nil {
-				log.Error().Err(err).Msg("Error reading HTTP response")
-				resp.Body.Close()
-				time.Sleep(1 * time.Second)
-				continue
-			}
-			resp.Body.Close()
-
-			var blockNumberResponse BlockNumberResponse
-			err = json.Unmarshal(body, &blockNumberResponse)
-			if err != nil {
-				log.Error().Err(err).Msg("Error decoding response JSON")
-				time.Sleep(1 * time.Second)
-				continue
-			}
-
-			newBlockNumber, err := strconv.ParseUint(blockNumberResponse.Result[2:], 16, 64)
-			if err != nil {
-				log.Error().Err(err).Msgf("Error converting block number %s to decimal", blockNumberResponse.Result)
-				continue
-			}
-			for blockNumber < int(newBlockNumber) {
-				blockNumber = blockNumber + 1
-				blockNumbersChannel <- blockNumber
-			}
-			time.Sleep(1 * time.Second)
-
+	zerolog.TimestampFieldName = "printout_time"
+	for blockNumber := 17864000; ; blockNumber++ {
+		block, err := processBlockDataFromPayloadsDeAPI(blockNumber)
+		if err == Err400Response {
+			time.Sleep(12 * time.Second)
+			blockNumber--
+			continue
+		} else if err != nil {
+			log.Error().Int("block_number", blockNumber).Err(err).Msg("Error processing block data, skipping")
+			continue
 		}
-	}(blockNumberChan)
 
-	for blockNumber := range blockNumberChan {
-		block := processBlockDataFromPayloadsDeAPI(blockNumber)
 		floatBlockValue, err := strconv.ParseFloat(block.Winner.Value, 64)
 		if err != nil {
 			log.Error().Err(err).Msg("Error converting block value to float")
 		}
+		categoryCounter := make(map[string]int)
+		valueCounter := make(map[string]float64)
+		for _, txn := range block.Transactions {
+			categoryCounter[txn.Class]++
+			valueCounter[txn.Class] += txn.Value
+		}
+		mevCount := float64(categoryCounter["mev"]) / float64(block.TxCount)
+		mevValue := valueCounter["mev"] / floatBlockValue
 
 		log.Info().
+			Str("log_version", "1.2").
 			Int("block_number", block.Block).
 			Int("txn_count", block.TxCount).
 			Str("block_hash", block.BlockHash).
 			Str("builder", block.Builder).
 			Str("builder_pubkey", block.Winner.BuilderPubkey).
+			Str("builder_address", block.Winner.BuilderPubkey).
 			Str("proposer_pubkey", block.Winner.ProposerPubkey).
 			Float64("builder_payment", block.Payment).
 			Float64("builder_payout", block.Payout).
@@ -226,32 +144,39 @@ func main() {
 			Str("extra_data", block.Extra).
 			Float64("base_fee", block.BaseFee).
 			Float64("priority_fee", block.PrioFee).
+			Float64("txn_count_mev_percentage", mevCount*100).
+			Float64("txn_value_mev_percentage", mevValue*100).
 			Int("gas_used", block.GasUsed).
-			Msg("New Block Metadata")
+			Time("time", time.Unix(int64(block.Timestamp), 0)).
+			Msg("New Block Metadata V1.2")
 	}
 }
 
+var Err400Response = errors.New("received 400 response from payloads.de")
+var ErrUnableToUnmarshal = errors.New("unable to unmarshal response JSON")
+
 // Check if request returns a 400 and wait 12 seconds before trying again. It's likeley payloads.de hasn't caught up witht he new block yet
-func processBlockDataFromPayloadsDeAPI(blockNumber int) BlockInfo {
+func processBlockDataFromPayloadsDeAPI(blockNumber int) (BlockInfo, error) {
 	// Make a request to the URL https://api.payload.de/block_info?block=17837129
 	// to get the block information
+	time.Sleep(500 * time.Nanosecond)
 	blockInfoURL := fmt.Sprintf("https://api.payload.de/block_info?block=%d", blockNumber)
 	resp, err := http.Get(blockInfoURL)
 	if err != nil {
 		log.Error().Err(err).Msg("Error sending HTTP request")
-		return BlockInfo{}
+		return BlockInfo{}, err
 	}
 	if resp.StatusCode == 400 {
-		log.Warn().Msg("Received 400 response from payloads.de. Waiting 12 seconds before trying again")
-		time.Sleep(12 * time.Second)
-		return processBlockDataFromPayloadsDeAPI(blockNumber)
+		log.Warn().Msgf("Received 400 response from payloads.de. Waiting 12 seconds before trying again")
+
+		return BlockInfo{}, Err400Response
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Error().Err(err).Msg("Error reading HTTP response")
 		resp.Body.Close()
-		return BlockInfo{}
+		return BlockInfo{}, Err400Response
 	}
 	resp.Body.Close()
 
@@ -259,8 +184,8 @@ func processBlockDataFromPayloadsDeAPI(blockNumber int) BlockInfo {
 	err = json.Unmarshal(body, &blockInfo)
 	if err != nil {
 		log.Error().Err(err).Msg("Error decoding response JSON")
-		return BlockInfo{}
+		return BlockInfo{}, ErrUnableToUnmarshal
 	}
 
-	return blockInfo
+	return blockInfo, nil
 }
