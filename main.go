@@ -105,7 +105,7 @@ func main() {
 	// Use zerolog for logging
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	zerolog.TimestampFieldName = "printout_time"
-	for blockNumber := 17800000; ; blockNumber++ {
+	for blockNumber := 17850000; ; blockNumber++ {
 		block, err := processBlockDataFromPayloadsDeAPI(blockNumber)
 		if err == Err400Response {
 			time.Sleep(12 * time.Second)
@@ -130,7 +130,7 @@ func main() {
 		mevValue := valueCounter["mev"] / floatBlockValue
 
 		log.Info().
-			Str("log_version", "1.6").
+			Str("log_version", "1.7").
 			Int("block_number", block.Block).
 			Int("txn_count", block.TxCount).
 			Str("block_hash", block.BlockHash).
@@ -148,7 +148,7 @@ func main() {
 			Float64("txn_value_mev_percentage", mevValue*100).
 			Int("gas_used", block.GasUsed).
 			Str("time", time.Unix(int64(block.Timestamp), 0).Format(time.RFC3339)).
-			Msg("New Block Metadata V1.6")
+			Msg("New Block Metadata V1.7")
 	}
 }
 
@@ -159,7 +159,7 @@ var ErrUnableToUnmarshal = errors.New("unable to unmarshal response JSON")
 func processBlockDataFromPayloadsDeAPI(blockNumber int) (BlockInfo, error) {
 	// Make a request to the URL https://api.payload.de/block_info?block=17837129
 	// to get the block information
-	time.Sleep(500 * time.Nanosecond)
+	time.Sleep(1000000 * time.Nanosecond)
 	blockInfoURL := fmt.Sprintf("https://api.payload.de/block_info?block=%d", blockNumber)
 	resp, err := http.Get(blockInfoURL)
 	if err != nil {
