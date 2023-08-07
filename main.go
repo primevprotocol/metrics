@@ -130,7 +130,7 @@ func main() {
 		mevValue := valueCounter["mev"] / floatBlockValue
 
 		log.Info().
-			Str("log_version", "1.2").
+			Str("log_version", "1.4").
 			Int("block_number", block.Block).
 			Int("txn_count", block.TxCount).
 			Str("block_hash", block.BlockHash).
@@ -147,8 +147,8 @@ func main() {
 			Float64("txn_count_mev_percentage", mevCount*100).
 			Float64("txn_value_mev_percentage", mevValue*100).
 			Int("gas_used", block.GasUsed).
-			Time("time", time.Unix(int64(block.Timestamp), 0)).
-			Msg("New Block Metadata V1.2")
+			Str("time", time.Unix(int64(block.Timestamp), 0).Format(time.RFC3339)).
+			Msg("New Block Metadata V1.4")
 	}
 }
 
