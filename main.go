@@ -105,7 +105,7 @@ func main() {
 	// Use zerolog for logging
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	zerolog.TimestampFieldName = "printout_time"
-	for blockNumber := 17860000; ; blockNumber++ {
+	for blockNumber := 17856000; ; blockNumber++ {
 		block, err := processBlockDataFromPayloadsDeAPI(blockNumber)
 		if err == Err400Response {
 			time.Sleep(12 * time.Second)
@@ -124,13 +124,13 @@ func main() {
 		valueCounter := make(map[string]float64)
 		for _, txn := range block.Transactions {
 			categoryCounter[txn.Class]++
-			valueCounter[txn.Class] += txn.Value
+			valueCounter[txn.Class] += txn.TipReward + txn.Coinbase
 		}
 		mevCount := float64(categoryCounter["mev"]) / float64(block.TxCount)
 		mevValue := valueCounter["mev"] / floatBlockValue
 
 		log.Info().
-			Str("log_version", "1.8").
+			Str("log_version", "1.9").
 			Int("block_number", block.Block).
 			Int("txn_count", block.TxCount).
 			Str("block_hash", block.BlockHash).
@@ -148,7 +148,7 @@ func main() {
 			Float64("txn_value_mev_percentage", mevValue*100).
 			Int("gas_used", block.GasUsed).
 			Str("time", time.Unix(int64(block.Timestamp), 0).Format(time.RFC3339)).
-			Msg("New Block Metadata V1.8")
+			Msg("New Block Metadata V1.9")
 	}
 }
 
