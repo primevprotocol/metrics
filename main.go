@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -105,7 +104,7 @@ func main() {
 	// Use zerolog for logging
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	zerolog.TimestampFieldName = "printout_time"
-	for blockNumber := 17866590; ; blockNumber++ {
+	for blockNumber := 17867016; ; blockNumber++ {
 		totalBlockValue := 0.0
 		block, err := processBlockDataFromPayloadsDeAPI(blockNumber)
 		if err == Err400Response {
@@ -117,10 +116,6 @@ func main() {
 			continue
 		}
 
-		floatBlockValue, err := strconv.ParseFloat(block.Winner.Value, 64)
-		if err != nil {
-			log.Error().Err(err).Msg("Error converting block value to float")
-		}
 		categoryCounter := make(map[string]int)
 		valueCounter := make(map[string]float64)
 		for _, txn := range block.Transactions {
@@ -132,7 +127,7 @@ func main() {
 		mevValue := valueCounter["mev"] / totalBlockValue
 
 		log.Info().
-			Str("log_version", "2.0").
+			Str("log_version", "2.1").
 			Int("block_number", block.Block).
 			Int("txn_count", block.TxCount).
 			Str("block_hash", block.BlockHash).
@@ -142,8 +137,7 @@ func main() {
 			Str("proposer_pubkey", block.Winner.ProposerPubkey).
 			Float64("builder_payment", block.Payment).
 			Float64("builder_payout", block.Payout).
-			Float64("builder_payback", totalBlockValue).
-			Float64("block_value_priority_fee", floatBlockValue).
+			Float64("block_value", totalBlockValue).
 			Str("extra_data", block.Extra).
 			Float64("base_fee", block.BaseFee).
 			Float64("priority_fee", block.PrioFee).
@@ -151,7 +145,7 @@ func main() {
 			Float64("txn_value_mev_percentage", mevValue*100).
 			Int("gas_used", block.GasUsed).
 			Str("time", time.Unix(int64(block.Timestamp), 0).Format(time.RFC3339)).
-			Msg("New Block Metadata V2.0")
+			Msg("New Block Metadata V2.1")
 	}
 }
 
